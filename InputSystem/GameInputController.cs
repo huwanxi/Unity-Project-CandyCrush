@@ -8,7 +8,6 @@ public class GameInputController
     
     // 状态
     private CubeView startCube;
-    private CubeView endCube;
     private Vector2 startPointerPos;
     private bool isDragging;
     
@@ -74,32 +73,8 @@ public class GameInputController
         }
         else
         {
-            // 点击操作 (Click)
-            endCube = RaycastCube();
-            if (endCube != null && endCube == startCube)
-            {
-                // 确认是点击了同一个方块
-                manager.TriggerClick(new Vector2Int(startCube.X, startCube.Y));
-                return;
-            }
-            else if(endCube!= null && endCube!= startCube)
-            {
-                // 确认是点击了相邻方块
-                if(CheckAdjacent(new Vector2Int(endCube.X, endCube.Y)))
-                {
-                    HandleSwipe(new Vector2Int(endCube.X-startCube.X, endCube.Y-startCube.Y));
-                }
-                else
-                {
-                    manager.TriggerCancel(new Vector2Int(startCube.X, startCube.Y));
-                    manager.TriggerClick(new Vector2Int(endCube.X, endCube.Y));
-                    startCube = endCube;
-                    endCube = null;
-                    return; 
-                }
-            }
+            manager.TriggerClick(new Vector2Int(startCube.X, startCube.Y));
         }
-
         ResetState();
     }
 
@@ -123,10 +98,9 @@ public class GameInputController
 
     public void ResetState()
     {
-        endCube = null;
         startCube = null;
         isDragging = false;
-        // Debug.Log("GameInputController: State Reset");
+        Debug.Log("GameInputController: State Reset");
     }
 
     private CubeView RaycastCube()

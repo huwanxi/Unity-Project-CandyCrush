@@ -8,7 +8,6 @@ public class GameInputManager : MonoBehaviour
     public static GameInputManager Instance { get; private set; }
 
     public event Func<Vector2Int, UniTask> OnInputClick;
-    public event Action<Vector2Int> OnInputCancel;
     public event Func<Vector2Int, Vector2, UniTask> OnInputSwipe;
 
     private GameInputController inputController;
@@ -126,6 +125,7 @@ public class GameInputManager : MonoBehaviour
             SetInputPaused(true);
             try
             {
+                Debug.Log(1);
                 await OnInputClick.Invoke(pos);
             }
             finally
@@ -157,11 +157,6 @@ public class GameInputManager : MonoBehaviour
                 }
             }
         }
-    }
-
-    public void TriggerCancel(Vector2Int pos)
-    {
-        OnInputCancel?.Invoke(pos);
     }
 
     /// <summary>

@@ -5,6 +5,9 @@ public class GameInputBinder
 {
     public void Bind()
     {
+        // 先解绑，防止重复绑定
+        Unbind();
+
         if (GameInputManager.Instance != null && CubeManager.Instance != null)
         {
             GameInputManager.Instance.OnInputClick += HandleClick;
