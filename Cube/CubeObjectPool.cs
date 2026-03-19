@@ -37,7 +37,7 @@ public class CubeObjectPool
         {
             GameObject cube = poolDictionary[type].Dequeue();
             cube.SetActive(true);
-            cube.transform.SetParent(rootObj.transform);
+            cube.transform.SetParent(rootObj.transform,false);
             return cube;
         }
         else

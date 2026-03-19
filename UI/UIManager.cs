@@ -104,7 +104,7 @@ public class UIManager
                 continue;
             }
 
-            uiGameObject.transform.SetParent(uiParent.transform);
+            uiGameObject.transform.SetParent(uiParent.transform,false);
             uiConfig = Resources.Load<UIConfig>(configPath);
             if(uiConfig == null)
             {

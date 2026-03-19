@@ -193,7 +193,23 @@ public class LevelInitialization
     {
         Debug.Log("LevelInitialization: 开始游戏...");
         await LoadLevel(levelPath, evaluationPath);
-        //生成棋盘
+
+        // UI 处理：先打开游戏界面(2)，关闭其他，确保玩家能看到背景
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.CloseUI(1); // 主菜单
+            UIManager.Instance.CloseUI(3); // 关卡选择
+            UIManager.Instance.CloseUI(WIN_UI_ID); // 确保结算关闭
+            UIManager.Instance.OpenUI(2);  // 游戏界面
+        }
+
+        // 播放游戏音乐
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayAudio("Game", 1f, true, false, false);
+        }
+
+        //生成棋盘 (包含方块下落动画)
         if (CubeManager.Instance != null)
         {
             await CubeManager.Instance.InitBoardAsync();
@@ -203,15 +219,6 @@ public class LevelInitialization
         if (StaticProperties.Instance.evaluationManager != null)
         {
             StaticProperties.Instance.evaluationManager.StartGame();
-        }
-
-        // UI 处理：打开游戏界面(2)，关闭其他
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.CloseUI(1); // 主菜单
-            UIManager.Instance.CloseUI(3); // 关卡选择
-            UIManager.Instance.CloseUI(WIN_UI_ID); // 确保结算关闭
-            UIManager.Instance.OpenUI(2);  // 游戏界面
         }
 
         // 启动输入系统

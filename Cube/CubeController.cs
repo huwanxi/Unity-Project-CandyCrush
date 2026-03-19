@@ -91,7 +91,19 @@ public class CubeController
 
     public async UniTask EliminateAnimAsync(float time = 0.3f)
     {
+        cube.PlaySound("Cube", 1f, false, true);
         await cube.EliminateAnim(time);
+    }
+
+    public async UniTask PromoteAnimAsync(BonusType bonusType, float time = 0.3f)
+    {
+        // 可以在这里播放变身动画，比如放大再缩小
+        cube.ScaleAnim(true, time / 2).OnComplete(() => 
+        {
+            SetBonus(bonusType);
+            cube.ScaleAnim(false, time / 2);
+        });
+        await UniTask.Delay((int)(time * 1000));
     }
 
     /// <summary>

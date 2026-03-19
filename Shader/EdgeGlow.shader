@@ -6,8 +6,8 @@ Shader "UI/EdgeGlow"
         _Color ("Tint", Color) = (1,1,1,1)
         
         _GlowColor ("Glow Color", Color) = (1,1,1,1)
-        _GlowThickness ("Glow Thickness", Range(0, 0.5)) = 0.05
-        _GlowIntensity ("Glow Intensity", Range(0, 10)) = 2.0
+        _GlowThickness ("Glow Thickness", Range(0, 0.5)) = 0.4
+        _GlowIntensity ("Glow Intensity", Range(0, 10)) = 8
         
         _StencilComp ("Stencil Comparison", Float) = 8
         _Stencil ("Stencil ID", Float) = 0

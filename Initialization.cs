@@ -45,14 +45,14 @@ public class Initialization : MonoBehaviour
         // 2. 初始化资源
         await new ResourceInitialization().Initialize();
 
-        // 3. 初始化关卡管理器
-        new LevelInitialization(); // 实例化并设置 Instance
-
-        // 4. 进入主菜单状态
-        ReturnToMainMenu();
-
-        //5.初始化UIManager
+        // 3.初始化UIManager (确保UI能最先被加载和控制)
         new UIManager().Initialize();
+
+        // 4. 初始化 AudioManager (确保音频系统可用)
+        new AudioManager().Init();
+
+        // 5. 初始化关卡管理器
+        new LevelInitialization(); // 实例化并设置 Instance
 
         // 6. 初始化 GameInputManager (Monobehaviour 单例)
         if (GameInputManager.Instance == null)
@@ -61,6 +61,9 @@ public class Initialization : MonoBehaviour
             inputGo.AddComponent<GameInputManager>();
             DontDestroyOnLoad(inputGo);
         }
+
+        // 7. 进入主菜单状态
+        ReturnToMainMenu();
     }
 
     /// <summary>
@@ -81,10 +84,16 @@ public class Initialization : MonoBehaviour
         {
             // 假设 4 是结算界面，2 是游戏界面，3 是关卡选择
             // 这里硬编码 ID 需与配置一致，或者从配置读取
+            UIManager.Instance.OpenUI(3); 
             UIManager.Instance.CloseUI(2); 
-            UIManager.Instance.CloseUI(3); 
             UIManager.Instance.CloseUI(4); 
             UIManager.Instance.OpenUI(1);  
+        }
+
+        // 3. 播放主界面音乐
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayAudio("Start", 1f, true, false, false);
         }
     }
 

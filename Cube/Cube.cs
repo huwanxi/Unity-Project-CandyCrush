@@ -19,11 +19,15 @@ public class Cube:ICube
 
     public Cube(RectTransform _trans, Image _image, Vector2[,] _posMap,int _type)
     {
+        
         trans = _trans;
         image = _image;
         posMap = _posMap;
         property.type = _type;
         animator = trans.GetComponent<Animator>();
+        glowMaterial = trans.GetComponent<Material>();
+        if (animator != null)
+            animator.Play("Start");
         if (image != null)
         {
             defaultMaterial = image.material;
@@ -76,8 +80,8 @@ public class Cube:ICube
                         break;
                 }
                 glowMaterial.SetColor("_GlowColor", glowColor);
-                glowMaterial.SetFloat("_GlowThickness", 0.15f);
-                glowMaterial.SetFloat("_GlowIntensity", 3.0f);
+                glowMaterial.SetFloat("_GlowThickness", 0.4f);
+                glowMaterial.SetFloat("_GlowIntensity", 8.0f);
             }
         }
     }
@@ -97,13 +101,14 @@ public class Cube:ICube
         else
             return image.DOColor(Color.white, time);
     }
-    public Tween DropWithGravity(int x,int y,float time=1)
+    public Tween DropWithGravity(int x,int y,float time=0.8f)
     {
+        
         float endY = posMap[x,y].y;
         float startY = trans.position.y;
         float midY = Mathf.Max(startY, endY) + Mathf.Abs(startY - endY) * 0.3f;
 
-        if(animator != null) animator.Play("Drop");
+        if (animator != null) ;//animator.Play("Drop");下落没有动画
 
         return DOVirtual.Float(0, 1, time, t =>
         {
@@ -119,7 +124,7 @@ public class Cube:ICube
     }
 
 
-    public async UniTask EliminateAnim(float time = 0.3f)
+    public async UniTask EliminateAnim(float time = 0.35f)
     {
         if(animator != null) animator.Play("Eliminate");
         //TimeSpan.FromSeconds 5秒时间变换
@@ -128,8 +133,16 @@ public class Cube:ICube
 
     public Tween ScaleAnim(bool isScaleUp, float time = 0.2f)
     {
-        float targetScale = isScaleUp ? 1.2f : 1.0f;
+        float targetScale = isScaleUp ? 2.2f : 2.0f;
         return trans.DOScale(targetScale, time);
+    }
+
+    public void PlaySound(string key, float volume = 1f, bool loop = false, bool overrideSame = true)
+    {
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayAudio(key, volume, loop, overrideSame, true);
+        }
     }
 
     public void Destory()
@@ -138,7 +151,7 @@ public class Cube:ICube
         if (trans != null) trans.DOKill();
         if (image != null) image.DOKill();
         // 重置状态以便对象池复用
-        if (trans != null) trans.localScale = Vector3.one;
+        if (trans != null) trans.localScale = Vector3.one*2;
         if (image != null) 
         {
             image.color = Color.white;

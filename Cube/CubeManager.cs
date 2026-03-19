@@ -256,8 +256,7 @@ public class CubeManager
 
             if (isSpecialSwap)
             {
-                 // 步数消耗
-                 OnMoveUsed?.Invoke();
+                 
 
                  // 特殊交换触发成功，直接进入后续填充流程
                  // 不需要回退
@@ -268,10 +267,12 @@ public class CubeManager
                  int safetyCounter = 0;
                  while (hasMatch && safetyCounter < 20)
                  {
-                     await UniTask.Delay(100); 
+                     await UniTask.Delay(20); 
                      hasMatch = await ProcessMatchesAsync();
                      safetyCounter++;
                  }
+                 // 步数消耗
+                 OnMoveUsed?.Invoke();
             }
             else
             {
@@ -280,9 +281,7 @@ public class CubeManager
                 
                 if (hasMatch)
                 {
-                    // 步数消耗
-                    OnMoveUsed?.Invoke();
-
+                    
                     // 3. 有消除，进入自动消除循环
                     int safetyCounter = 0;
                     while (hasMatch && safetyCounter < 20)
@@ -291,6 +290,9 @@ public class CubeManager
                         hasMatch = await ProcessMatchesAsync();
                         safetyCounter++;
                     }
+                    // 步数消耗
+                    OnMoveUsed?.Invoke();
+
                 }
                 else
                 {
@@ -733,6 +735,15 @@ public class CubeManager
         // 使用队列进行广度优先搜索
         Queue<CubeController> processingQueue = new Queue<CubeController>(cubesToDestroy);
         
+        // 将即将变身的且自身已经是特殊方块的，也加入触发队列，使其在变身前触发原有效果
+        foreach (var p in cubesToPromote)
+        {
+            if (p.BonusType != BonusType.None)
+            {
+                processingQueue.Enqueue(p);
+            }
+        }
+        
         // 为了防止无限循环，我们需要记录已处理过的触发源
         HashSet<CubeController> processedTriggers = new HashSet<CubeController>();
 
@@ -741,7 +752,7 @@ public class CubeManager
             CubeController c = processingQueue.Dequeue();
             
             // 如果这个方块已经被销毁或者正在变身，我们检查它的 BonusType 是否能触发更多消除
-            // 注意：只有被消除的特殊方块才会触发效果。正在变身的方块（Promote）不会触发。
+            // 只有被消除的特殊方块才会触发效果。正在变身的方块（Promote）不会触发。
             
             if (processedTriggers.Contains(c)) continue;
             processedTriggers.Add(c);
@@ -813,14 +824,13 @@ public class CubeManager
             animTasks.Add(c.EliminateAnimAsync());
         }
         
-        // 执行变身逻辑（无动画，直接设置状态，或者可以加个简单动画）
+        // 执行变身逻辑
         foreach(var group in groups)
         {
             if (group.mergeTarget != null && group.bonusType != BonusType.None)
             {
                 Debug.Log($"Promoting cube at ({group.mergeTarget.X}, {group.mergeTarget.Y}) to {group.bonusType}");
-                group.mergeTarget.SetBonus(group.bonusType);
-                // 可以在这里播放一个升级音效或特效
+                animTasks.Add(group.mergeTarget.PromoteAnimAsync(group.bonusType));
             }
         }
         

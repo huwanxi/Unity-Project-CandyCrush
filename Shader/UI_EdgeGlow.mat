@@ -27,8 +27,8 @@ Material:
     m_Ints: []
     m_Floats:
     - _ColorMask: 15
-    - _GlowIntensity: 2
-    - _GlowThickness: 0.05
+    - _GlowIntensity: 5
+    - _GlowThickness: 0.25
     - _Stencil: 0
     - _StencilComp: 8
     - _StencilOp: 0

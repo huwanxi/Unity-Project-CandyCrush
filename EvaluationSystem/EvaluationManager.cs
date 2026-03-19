@@ -143,7 +143,7 @@ public class EvaluationManager
         OnScoreUpdated?.Invoke(currentScore);
         Debug.Log($"Score Added: {amount}, Total: {currentScore}");
         
-        CheckGameStatus();
+        //CheckGameStatus();不再只符合胜利条件触发结算
     }
 
     private void CheckGameStatus()
