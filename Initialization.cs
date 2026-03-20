@@ -82,12 +82,7 @@ public class Initialization : MonoBehaviour
         // 2. UI 切换：打开主菜单(1)，关闭其他
         if (UIManager.Instance != null)
         {
-            // 假设 4 是结算界面，2 是游戏界面，3 是关卡选择
-            // 这里硬编码 ID 需与配置一致，或者从配置读取
-            UIManager.Instance.OpenUI(3); 
-            UIManager.Instance.CloseUI(2); 
-            UIManager.Instance.CloseUI(4); 
-            UIManager.Instance.OpenUI(1);  
+            UIManager.Instance.OpenMainMenuUI();
         }
 
         // 3. 播放主界面音乐

@@ -133,7 +133,6 @@ public class EvaluationManager
         {
             currentMoveCount--;
             OnMoveUpdated?.Invoke(currentMoveCount);
-            CheckGameStatus();
         }
     }
 
@@ -142,11 +141,9 @@ public class EvaluationManager
         currentScore += amount;
         OnScoreUpdated?.Invoke(currentScore);
         Debug.Log($"Score Added: {amount}, Total: {currentScore}");
-        
-        //CheckGameStatus();不再只符合胜利条件触发结算
     }
 
-    private void CheckGameStatus()
+    public void CheckGameStatus()
     {
         if (CheckWinCondition())
         {
@@ -162,8 +159,24 @@ public class EvaluationManager
 
     private bool CheckWinCondition()
     {
-        // 简单判定：达到一星分数即视为胜利 (或者根据具体需求)
-        return currentScore >= evaluationData.oneStarScore;
+        // 胜利条件：达到一星分数，并且 (步数/时间耗尽 或者 没有可以消除的方块)
+        bool isResourceExhausted = false;
+        if (evaluationData.gameMode == GameMode.TimeLimit)
+        {
+            isResourceExhausted = currentTimer <= 0;
+        }
+        else
+        {
+            isResourceExhausted = currentMoveCount <= 0;
+        }
+
+        bool hasNoPossibleMoves = false;
+        if (CubeManager.Instance != null)
+        {
+            hasNoPossibleMoves = !CubeManager.Instance.HasPossibleMoves();
+        }
+
+        return currentScore >= evaluationData.oneStarScore && (isResourceExhausted || hasNoPossibleMoves);
     }
 
     private bool CheckLoseCondition()

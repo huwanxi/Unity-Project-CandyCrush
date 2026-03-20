@@ -273,6 +273,12 @@ public class CubeManager
                  }
                  // 步数消耗
                  OnMoveUsed?.Invoke();
+                 
+                 // 检查游戏状态（胜负或死局）
+                 if (StaticProperties.Instance != null && StaticProperties.Instance.evaluationManager != null)
+                 {
+                     StaticProperties.Instance.evaluationManager.CheckGameStatus();
+                 }
             }
             else
             {
@@ -292,6 +298,12 @@ public class CubeManager
                     }
                     // 步数消耗
                     OnMoveUsed?.Invoke();
+                    
+                    // 检查游戏状态（胜负或死局）
+                    if (StaticProperties.Instance != null && StaticProperties.Instance.evaluationManager != null)
+                    {
+                        StaticProperties.Instance.evaluationManager.CheckGameStatus();
+                    }
 
                 }
                 else
@@ -351,15 +363,15 @@ public class CubeManager
             return true;
         }
 
-        // 情况2: Colorful + Normal/Special = 消除同色
-        // 如果是 Colorful + Special，通常会把同色方块都变成那个 Special，这里先简化为消除同色
+        // 情况2: Colorful + Normal/Special
         CubeController colorfulCube = c1IsColorful ? c1 : c2;
         CubeController targetCube = c1IsColorful ? c2 : c1;
         
         // 目标颜色
         int targetType = targetCube.Type;
+        BonusType targetBonus = targetCube.BonusType;
         
-        Debug.Log($"Special Swap: Colorful + Type {targetType}");
+        Debug.Log($"Special Swap: Colorful + Type {targetType} (Bonus: {targetBonus})");
         
         HashSet<CubeController> cubesToDestroy = new HashSet<CubeController>();
         cubesToDestroy.Add(colorfulCube); // 销毁 Colorful 自己
@@ -372,7 +384,119 @@ public class CubeManager
                 if (grid[x, y] != null && grid[x, y].Type == targetType)
                 {
                     cubesToDestroy.Add(grid[x, y]);
+                    
+                    // 如果目标是条纹方块（Horizontal/Vertical），则将所有同色方块也变成随机方向的条纹方块
+                    if (targetBonus == BonusType.Horizontal || targetBonus == BonusType.Vertical)
+                    {
+                        // 随机变成横向或纵向条纹
+                        BonusType newBonus = Random.value > 0.5f ? BonusType.Horizontal : BonusType.Vertical;
+                        grid[x, y].SetBonus(newBonus);
+                    }
                 }
+            }
+        }
+
+        // --- 新增逻辑：检查同色方块消除时是否会形成新的匹配组从而产生新的特殊方块 ---
+        if (targetBonus == BonusType.None)
+        {
+            // 在同色消除发生时，检查这些被消除的方块在网格中是否构成了4消或5消的形状
+            // 我们通过调用 FindMatches 并过滤出只包含这些要被销毁方块的组来实现
+            List<MatchGroup> virtualGroups = FindMatches();
+            foreach (var group in virtualGroups)
+            {
+                if (group.bonusType != BonusType.None)
+                {
+                    // 检查这个组里的方块是否都在我们将要销毁的列表中 (即同色方块)
+                    bool isAllInDestroyList = true;
+                    foreach (var c in group.cubes)
+                    {
+                        if (!cubesToDestroy.Contains(c))
+                        {
+                            isAllInDestroyList = false;
+                            break;
+                        }
+                    }
+
+                    if (isAllInDestroyList)
+                    {
+                        // 确定一个合成目标
+                        CubeController mergeTarget = group.cubes[Random.Range(0, group.cubes.Count)];
+                        
+                        // 将它从销毁列表中移除，使其保留下来变身为特殊方块
+                        cubesToDestroy.Remove(mergeTarget);
+                        
+                        // 直接执行变身
+                        Debug.Log($"Colorful matched a shape: Promoting cube at ({mergeTarget.X}, {mergeTarget.Y}) to {group.bonusType}");
+                        mergeTarget.SetBonus(group.bonusType);
+                        
+                        // 变身后的方块不应该在当前回合被消除（它留给玩家以后用），除非它又被其他特效波及，
+                        // 但在当前的 SpecialSwap 阶段，我们把它保留下来即可。
+                    }
+                }
+            }
+        }
+        // -------------------------------------------------------------------------
+
+        // 如果生成了新的条纹方块，需要将它们放入触发队列以触发它们的消除效果
+        Queue<CubeController> processingQueue = new Queue<CubeController>(cubesToDestroy);
+        HashSet<CubeController> processedTriggers = new HashSet<CubeController>();
+
+        while (processingQueue.Count > 0)
+        {
+            CubeController c = processingQueue.Dequeue();
+            if (processedTriggers.Contains(c)) continue;
+            processedTriggers.Add(c);
+
+            BonusType bType = c.BonusType;
+
+            if (bType == BonusType.Horizontal)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    if (grid[x, c.Y] != null)
+                    {
+                        CubeController target = grid[x, c.Y];
+                        if (!cubesToDestroy.Contains(target))
+                        {
+                            cubesToDestroy.Add(target);
+                            processingQueue.Enqueue(target);
+                        }
+                    }
+                }
+            }
+            else if (bType == BonusType.Vertical)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    if (grid[c.X, y] != null)
+                    {
+                        CubeController target = grid[c.X, y];
+                        if (!cubesToDestroy.Contains(target))
+                        {
+                            cubesToDestroy.Add(target);
+                            processingQueue.Enqueue(target);
+                        }
+                    }
+                }
+            }
+            else if (bType == BonusType.Colorful && c != colorfulCube) // 避免处理自身引发死循环
+            {
+                 int innerTargetType = c.Type;
+                 for(int x = 0; x < width; x++)
+                 {
+                     for(int y = 0; y < height; y++)
+                     {
+                         if (grid[x, y] != null && grid[x, y].Type == innerTargetType)
+                         {
+                              CubeController target = grid[x, y];
+                              if (!cubesToDestroy.Contains(target))
+                              {
+                                  cubesToDestroy.Add(target);
+                                  processingQueue.Enqueue(target);
+                              }
+                         }
+                     }
+                 }
             }
         }
 
@@ -385,6 +509,9 @@ public class CubeManager
         }
         await UniTask.WhenAll(tasks);
         
+        // 计分
+        OnMatchesProcessed?.Invoke(cubesToDestroy.Count, cubesToDestroy.Count * 20);
+
         foreach(var c in cubesToDestroy) DestroyCube(c);
 
         return true;
@@ -683,6 +810,79 @@ public class CubeManager
 
         
         return groups;
+    }
+
+    /// <summary>
+    /// 检查棋盘上是否还有任何可以移动消除的步骤
+    /// </summary>
+    public bool HasPossibleMoves()
+    {
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (!IsValid(x, y) || grid[x, y] == null) continue;
+
+                // 1. 检查是否存在 Colorful 方块（可以直接消除）
+                if (grid[x, y].BonusType == BonusType.Colorful)
+                {
+                    // 检查它周围是否有可以交换的方块
+                    if ((IsValid(x + 1, y) && grid[x + 1, y] != null) ||
+                        (IsValid(x - 1, y) && grid[x - 1, y] != null) ||
+                        (IsValid(x, y + 1) && grid[x, y + 1] != null) ||
+                        (IsValid(x, y - 1) && grid[x, y - 1] != null))
+                    {
+                        return true;
+                    }
+                }
+
+                // 2. 模拟向右交换
+                if (IsValid(x + 1, y) && grid[x + 1, y] != null)
+                {
+                    SwapDataOnly(x, y, x + 1, y);
+                    bool match = CheckMatchAt(x, y) || CheckMatchAt(x + 1, y);
+                    SwapDataOnly(x, y, x + 1, y); // 换回来
+                    if (match) return true;
+                }
+
+                // 3. 模拟向上交换
+                if (IsValid(x, y + 1) && grid[x, y + 1] != null)
+                {
+                    SwapDataOnly(x, y, x, y + 1);
+                    bool match = CheckMatchAt(x, y) || CheckMatchAt(x, y + 1);
+                    SwapDataOnly(x, y, x, y + 1); // 换回来
+                    if (match) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void SwapDataOnly(int x1, int y1, int x2, int y2)
+    {
+        CubeController temp = grid[x1, y1];
+        grid[x1, y1] = grid[x2, y2];
+        grid[x2, y2] = temp;
+    }
+
+    private bool CheckMatchAt(int x, int y)
+    {
+        if (!IsValid(x, y) || grid[x, y] == null) return false;
+        int type = grid[x, y].Type;
+
+        // 横向检测
+        int hCount = 1;
+        for (int i = x - 1; i >= 0 && IsValid(i, y) && grid[i, y] != null && grid[i, y].Type == type; i--) hCount++;
+        for (int i = x + 1; i < width && IsValid(i, y) && grid[i, y] != null && grid[i, y].Type == type; i++) hCount++;
+        if (hCount >= 3) return true;
+
+        // 纵向检测
+        int vCount = 1;
+        for (int j = y - 1; j >= 0 && IsValid(x, j) && grid[x, j] != null && grid[x, j].Type == type; j--) vCount++;
+        for (int j = y + 1; j < height && IsValid(x, j) && grid[x, j] != null && grid[x, j].Type == type; j++) vCount++;
+        if (vCount >= 3) return true;
+
+        return false;
     }
 
     /// <summary>

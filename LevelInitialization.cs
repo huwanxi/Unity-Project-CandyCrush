@@ -197,10 +197,7 @@ public class LevelInitialization
         // UI 处理：先打开游戏界面(2)，关闭其他，确保玩家能看到背景
         if (UIManager.Instance != null)
         {
-            UIManager.Instance.CloseUI(1); // 主菜单
-            UIManager.Instance.CloseUI(3); // 关卡选择
-            UIManager.Instance.CloseUI(WIN_UI_ID); // 确保结算关闭
-            UIManager.Instance.OpenUI(2);  // 游戏界面
+            UIManager.Instance.OpenGameUI();
         }
 
         // 播放游戏音乐

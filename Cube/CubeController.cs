@@ -117,7 +117,7 @@ public class CubeController
         cube.property.y = y;
         
         // 重置视觉状态
-        cubeObject.transform.localScale = Vector3.one;
+        cube.Destory(); // 利用 cube 的 Destory 逻辑来安全重置 scale、颜色和动画
         var img = cubeObject.GetComponent<Image>();
         if (img != null) img.color = Color.white;
         var anim = cubeObject.GetComponent<Animator>();

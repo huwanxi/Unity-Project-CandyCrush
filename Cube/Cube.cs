@@ -16,6 +16,7 @@ public class Cube:ICube
     private Vector2[,] posMap;
     private Material defaultMaterial;
     private Material glowMaterial;
+    private Vector3 originalScale; // 用于记录方块初始化的真实大小
 
     public Cube(RectTransform _trans, Image _image, Vector2[,] _posMap,int _type)
     {
@@ -26,6 +27,10 @@ public class Cube:ICube
         property.type = _type;
         animator = trans.GetComponent<Animator>();
         glowMaterial = trans.GetComponent<Material>();
+
+        originalScale = trans.localScale; // 记录真实大小
+        if (originalScale == Vector3.zero) originalScale = Vector3.one;
+
         if (animator != null)
             animator.Play("Start");
         if (image != null)
@@ -133,7 +138,8 @@ public class Cube:ICube
 
     public Tween ScaleAnim(bool isScaleUp, float time = 0.2f)
     {
-        float targetScale = isScaleUp ? 2.2f : 2.0f;
+        // 基于 originalScale 进行比例缩放，比如放大是原来的 1.1 倍，恢复是 1 倍
+        Vector3 targetScale = isScaleUp ? originalScale * 1.2f : originalScale;
         return trans.DOScale(targetScale, time);
     }
 
@@ -151,7 +157,7 @@ public class Cube:ICube
         if (trans != null) trans.DOKill();
         if (image != null) image.DOKill();
         // 重置状态以便对象池复用
-        if (trans != null) trans.localScale = Vector3.one*2;
+        if (trans != null) trans.localScale = originalScale;
         if (image != null) 
         {
             image.color = Color.white;

@@ -181,6 +181,14 @@ public class UIManager
                 uiUnits[i] = null;
             }
         }
+        for(int i=0;i<uiEventsList.Count;i++)
+        {
+            // 移除所有事件
+            if(uiEventsList.TryGetValue(i,out Action<UIEventParameter> action))
+            {
+                action=null;
+            }
+        }
     }
     //反射
     private UIController GetUIController(UIConfig uiConfig, GameObject uiGameObject)
@@ -195,17 +203,15 @@ public class UIManager
             Type uiType = Type.GetType(uiConfig.customUIClass);
             if (uiType == null)
             {
-                // Fallback: Try finding type by name in current assembly if namespace is not provided
                 uiType = Assembly.GetExecutingAssembly().GetType(uiConfig.customUIClass);
             }
 
             if(uiType == null)
             {
                 Debug.LogError($"UIManager: 无法加载自定义UI Controller，类名: {uiConfig.customUIClass}");
-                return new UIController(uiGameObject); // Return base controller instead of null to prevent crash
+                return new UIController(uiGameObject);
             }
             
-            // Try to find a constructor that takes GameObject
             ConstructorInfo ctor = uiType.GetConstructor(new Type[] { typeof(GameObject) });
             if (ctor != null)
             {
@@ -213,7 +219,6 @@ public class UIManager
             }
             else
             {
-                // If no matching constructor found, try default constructor
                 try
                 {
                     return (UIController)Activator.CreateInstance(uiType);
@@ -221,7 +226,6 @@ public class UIManager
                 catch (Exception e)
                 {
                     Debug.LogError($"UIManager: 无法实例化 {uiType.Name}。既没有找到带 GameObject 参数的构造函数，默认构造函数也失败: {e.Message}");
-                    // Fallback to base controller
                     return new UIController(uiGameObject);
                 }
             }
@@ -258,7 +262,29 @@ public class UIManager
             return;
         }
     }
-    public void OpenUI(int id)
+    public void OpenMainMenuUI()
+    {
+        // 关闭其他 UI
+        CloseUI(2); // 游戏界面      
+        CloseUI(4); // 结算界面
+        
+        // 打开主菜单
+        OpenUI(1);
+        OpenUI(3); // 关卡选择
+    }
+
+    public void OpenGameUI()
+    {
+        // 关闭其他 UI
+        CloseUI(1); // 主菜单
+        CloseUI(3); // 关卡选择
+        CloseUI(4); // 结算界面
+        
+        // 打开游戏界面
+        OpenUI(2);
+    }
+
+    public async void OpenUI(int id)
     {
         if(id <= 0 || id > uisConfig.uiGameObjectCount)
         {
@@ -266,6 +292,9 @@ public class UIManager
             return;
         }
         
+        // 延迟一小段时间，确保按钮动画（如果有）能够执行完毕
+        await UniTask.Delay(System.TimeSpan.FromSeconds(0.15f));
+
         if (uiUnits[id-1] != null && uiUnits[id-1].uiController != null)
         {
              uiUnits[id-1].uiController.Enter();
@@ -276,7 +305,7 @@ public class UIManager
         }
     }
 
-    public void CloseUI(int id)
+    public async void CloseUI(int id)
     {
         if(id <= 0 || id > uisConfig.uiGameObjectCount)
         {
@@ -284,6 +313,9 @@ public class UIManager
             return;
         }
         
+        // 延迟一小段时间，确保按钮动画（如果有）能够执行完毕
+        await UniTask.Delay(System.TimeSpan.FromSeconds(0.15f));
+
         if (uiUnits[id-1] != null && uiUnits[id-1].uiController != null)
         {
              uiUnits[id-1].uiController.Exit();
@@ -293,4 +325,39 @@ public class UIManager
              uiUnits[id-1].uiGameObject.SetActive(false);
         }
     }
+    public Dictionary<int,Action<UIEventParameter>> uiEventsList;
+    public void EventBind<T>(int id,Action<T> action) where T : UIEventParameter
+    {
+        try
+        {
+            uiEventsList.Add(id-1,(Action <UIEventParameter>)action);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"UIManager: 无法绑定事件，ID: {id}，错误: {e.Message}");
+        }
+    }
+    public void EventTrigger(int id,UIEventParameter uiEventParameter)
+    {
+        try
+        {
+            if(uiEventsList.ContainsKey(id-1))
+            {
+                uiEventsList[id-1](uiEventParameter);
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"UIManager: 触发事件失败，ID: {id}，错误: {e.Message}");
+        }
+    }
+}
+public class UIEventParameter
+{
+    public int intParam;
+    public bool boolParam;
+    public float floatParam;
+    public string strParam;
+    public object objParam;
+    
 }
