@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using System.Collections.Generic;
 
 public class UIController_EnterLevel : UIController
@@ -17,6 +18,8 @@ public class UIController_EnterLevel : UIController
     {
         // 从资源配置中获取 LevelConfig 路径
         string path = ResourceConfigManager.GetPath("Levels_ButtonConfig", "Json/UIJson");
+        if (string.IsNullOrEmpty(path)) return;
+        
         levelButtonConfig = Resources.Load<LevelButtonConfig>(path);
         if (levelButtonConfig == null)
         {
@@ -28,9 +31,20 @@ public class UIController_EnterLevel : UIController
     {
         if (levelButtonConfig == null) return;
 
-        // 清理旧按钮 (如果不是对象池管理)
-        // 注意：如果是在 Editor 模式下多次运行，可能需要清理
-        // 但通常 Instantiate 是运行时的，不会持久化
+        // 在当前 UI 预制体中查找 ScrollRect 的 Content 作为父节点
+        ScrollRect scrollRect = gameObject.GetComponentInChildren<ScrollRect>(true);
+        if (scrollRect == null)
+        {
+            Debug.LogError("UIController_EnterLevel: 未在 UI 预制体中找到 ScrollRect 组件！");
+            return;
+        }
+
+        Transform content = scrollRect.content;
+        if (content == null)
+        {
+            Debug.LogError("UIController_EnterLevel: ScrollRect 的 Content 未绑定！");
+            return;
+        }
         
         for (int i = 0; i < levelButtonConfig.levelCount; i++)
         {
@@ -40,9 +54,9 @@ public class UIController_EnterLevel : UIController
                 break;
             }
 
-            GameObject btnObj = Object.Instantiate(levelButtonConfig.levelButtonPrefab, gameObject.transform);
+            // 动态生成按钮并放到 Content 下
+            GameObject btnObj = Object.Instantiate(levelButtonConfig.levelButtonPrefab, content);
             btnObj.name = $"LevelButton_{i+1}";
-            // 确保激活
             btnObj.SetActive(true);
 
             // 为每个按钮创建 UIBase_EnterLevel 控制器实例
@@ -56,7 +70,7 @@ public class UIController_EnterLevel : UIController
     public override void Pause()
     {
         base.Pause();
-        for(int i =0; i < levelButtons.Count; i++)
+        for(int i = 0; i < levelButtons.Count; i++)
         {
             levelButtons[i].Pause();
         }
@@ -65,5 +79,9 @@ public class UIController_EnterLevel : UIController
     public override void Resume()
     {
         base.Resume();
+        for(int i = 0; i < levelButtons.Count; i++)
+        {
+            levelButtons[i].Resume();
+        }
     }
 }

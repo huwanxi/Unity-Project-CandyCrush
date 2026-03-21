@@ -36,7 +36,7 @@ public class UIManager
     //ui全集
     public UIUnit[] uiUnits{private set;get;}
 
-    private GameObject uiParent;
+    private List<GameObject> uiParents = new List<GameObject>();
 
     public UIManager()
     {
@@ -64,6 +64,14 @@ public class UIManager
 
     }
 
+    private class UIInitData
+    {
+        public int id;
+        public GameObject uiGameObject;
+        public UIConfig uiConfig;
+        public UIController uiController;
+    }
+
     private void ResourceInitialize()
     {
         
@@ -81,22 +89,18 @@ public class UIManager
             Debug.LogError($"UIManager: 无法加载 UIsConfig，路径: {uisConfig_Path}");
             return;
         }
-        uiParent = UnityEngine.Object.Instantiate(uisConfig.uiParent);
 
         int count = uisConfig.uiGameObjectCount;
         uiUnits = new UIUnit[count];
 
+        List<UIInitData> uiInitDataList = new List<UIInitData>();
+
         for(int i = 1; i <= count; i++)
         {
-            GameObject uiGameObject = null;
-            UIConfig uiConfig = null;
-
             string prefabPath = $"Prefabs/UI/UIGameObject_{i}";
-;
-                
             string configPath =  $"SO/UIConfig_{i}" ;
 
-            uiGameObject = UnityEngine.Object.Instantiate( Resources.Load<GameObject>(prefabPath));
+            GameObject uiGameObject = UnityEngine.Object.Instantiate( Resources.Load<GameObject>(prefabPath));
             Resources.UnloadUnusedAssets();
             if(uiGameObject == null)
             {
@@ -104,8 +108,7 @@ public class UIManager
                 continue;
             }
 
-            uiGameObject.transform.SetParent(uiParent.transform,false);
-            uiConfig = Resources.Load<UIConfig>(configPath);
+            UIConfig uiConfig = Resources.Load<UIConfig>(configPath);
             if(uiConfig == null)
             {
                 Debug.LogError($"UIManager: 无法加载 UI Config, 路径: {configPath}");
@@ -119,24 +122,66 @@ public class UIManager
                 uiGameObject.SetActive(false);
             }
             
-            uiUnits[i-1] = new UIUnit(i,uiGameObject,uiController);
-        }
-        
-        // 绑定按钮
-        for(int i = 0; i < count; i++)
-        {
-            if (uiUnits[i] != null)
+            uiInitDataList.Add(new UIInitData()
             {
-                string configPath =$"Json/UIJson/UIConfig_{i}" ;
-                
-                UIConfig currentConfig = Resources.Load<UIConfig>(configPath);
-                
-                if (currentConfig != null)
-                {
-                    ButtonBind(currentConfig, i+1, uiUnits[i].uiGameObject);
-                }
+                id = i,
+                uiGameObject = uiGameObject,
+                uiConfig = uiConfig,
+                uiController = uiController
+            });
+        }
+
+        // 根据 parentPriority 进行分组
+        var parentDict = new Dictionary<int, GameObject>();
+        var parentPriorityList = new List<int>();
+
+        foreach (var data in uiInitDataList)
+        {
+            if (!parentPriorityList.Contains(data.uiConfig.parentPriority))
+            {
+                parentPriorityList.Add(data.uiConfig.parentPriority);
             }
-        }    
+        }
+
+        // 按 parentPriority 排序 (越小越靠前)
+        parentPriorityList.Sort();
+
+        foreach (var pp in parentPriorityList)
+        {
+            // 实例化不同的 uiparent
+            GameObject parentObj = UnityEngine.Object.Instantiate(uisConfig.uiParent);
+            parentObj.name = $"UIParent_Priority_{pp}";
+            
+            // 更改它的 sortingOrder (假设是 Canvas 组件)
+            Canvas canvas = parentObj.GetComponent<Canvas>();
+            if (canvas != null)
+            {
+                canvas.sortingOrder = pp;
+            }
+
+            parentDict[pp] = parentObj;
+            uiParents.Add(parentObj);
+        }
+
+        // 重新对每个 parentPriority 内的 uiGameObject 进行 priority 排序并设置父物体
+        foreach (var pp in parentPriorityList)
+        {
+            var group = uiInitDataList.FindAll(x => x.uiConfig.parentPriority == pp);
+            group.Sort((a, b) => a.uiConfig.priority.CompareTo(b.uiConfig.priority));
+
+            foreach (var data in group)
+            {
+                data.uiGameObject.transform.SetParent(parentDict[pp].transform, false);
+                data.uiGameObject.transform.SetAsLastSibling();
+            }
+        }
+
+        // 赋值到 uiUnits 数组并绑定按钮
+        foreach (var data in uiInitDataList)
+        {
+            uiUnits[data.id - 1] = new UIUnit(data.id, data.uiGameObject, data.uiController);
+            ButtonBind(data.uiConfig, data.id, data.uiGameObject);
+        }
         
         Debug.Log("UIManager初始化完成");
 
@@ -168,10 +213,13 @@ public class UIManager
 
     public void Destroy()
     {
-        if(uiParent != null)
+        if(uiParents != null)
         {
-            UnityEngine.Object.Destroy(uiParent);
-            uiParent = null;
+            foreach(var p in uiParents)
+            {
+                if(p != null) UnityEngine.Object.Destroy(p);
+            }
+            uiParents.Clear();
         }
         for(int i=0;i<uiUnits.Length;i++)
         {
@@ -181,14 +229,7 @@ public class UIManager
                 uiUnits[i] = null;
             }
         }
-        for(int i=0;i<uiEventsList.Count;i++)
-        {
-            // 移除所有事件
-            if(uiEventsList.TryGetValue(i,out Action<UIEventParameter> action))
-            {
-                action=null;
-            }
-        }
+        uiEventsList.Clear();
     }
     //反射
     private UIController GetUIController(UIConfig uiConfig, GameObject uiGameObject)
@@ -234,8 +275,8 @@ public class UIManager
 
     private void ButtonBind(UIConfig uiConfig,int id,GameObject gameObject)
     {
-        Button open =gameObject.transform.Find("Open").GetComponent<Button>();
-        Button close =gameObject.transform.Find("Close").GetComponent<Button>();
+        Button open =gameObject.transform.Find("Open")?.GetComponent<Button>();
+        Button close =gameObject.transform.Find("Close")?.GetComponent<Button>();
         if(open != null)
         {
             open.onClick.AddListener(()=>
@@ -267,6 +308,7 @@ public class UIManager
         // 关闭其他 UI
         CloseUI(2); // 游戏界面      
         CloseUI(4); // 结算界面
+        CloseUI(6); // 游戏评估界面
         
         // 打开主菜单
         OpenUI(1);
@@ -281,7 +323,8 @@ public class UIManager
         CloseUI(4); // 结算界面
         
         // 打开游戏界面
-        OpenUI(2);
+        OpenUI(2); // 游戏主界面
+        OpenUI(6); // 游戏评估界面 (分数、星级等)
     }
 
     public async void OpenUI(int id)
@@ -325,25 +368,42 @@ public class UIManager
              uiUnits[id-1].uiGameObject.SetActive(false);
         }
     }
-    public Dictionary<int,Action<UIEventParameter>> uiEventsList;
-    public void EventBind<T>(int id,Action<T> action) where T : UIEventParameter
+    public Dictionary<int, Delegate> uiEventsList = new Dictionary<int, Delegate>();
+
+    public void EventBind<T>(int id, Action<T> action) where T : UIEventParameter
     {
         try
         {
-            uiEventsList.Add(id-1,(Action <UIEventParameter>)action);
+            if (uiEventsList.ContainsKey(id - 1))
+            {
+                // 如果已经有绑定的事件，可以叠加（使用 Delegate.Combine）
+                uiEventsList[id - 1] = Delegate.Combine(uiEventsList[id - 1], action);
+            }
+            else
+            {
+                uiEventsList.Add(id - 1, action);
+            }
         }
         catch (Exception e)
         {
             Debug.LogError($"UIManager: 无法绑定事件，ID: {id}，错误: {e.Message}");
         }
     }
-    public void EventTrigger(int id,UIEventParameter uiEventParameter)
+
+    public void EventTrigger<T>(int id, T uiEventParameter) where T : UIEventParameter
     {
         try
         {
-            if(uiEventsList.ContainsKey(id-1))
+            if (uiEventsList.ContainsKey(id - 1))
             {
-                uiEventsList[id-1](uiEventParameter);
+                if (uiEventsList[id - 1] is Action<T> action)
+                {
+                    action.Invoke(uiEventParameter);
+                }
+                else
+                {
+                    Debug.LogWarning($"UIManager: 事件类型不匹配，ID: {id}，期望: {typeof(Action<T>)}，实际: {uiEventsList[id - 1].GetType()}");
+                }
             }
         }
         catch (Exception e)
@@ -360,4 +420,16 @@ public class UIEventParameter
     public string strParam;
     public object objParam;
     
+}
+
+public class ScoreUpdateEventParam : UIEventParameter
+{
+    public int currentScore;
+    public int maxScore; // 三星的分数，用于进度条
+    public int[] starScores; // 三个星级的分数要求
+}
+
+public class BoardUpdateEventParam : UIEventParameter
+{
+    public int levelId;
 }

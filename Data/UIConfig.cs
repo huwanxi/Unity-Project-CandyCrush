@@ -18,4 +18,10 @@ public class UIConfig : ScriptableObject
 
     [Tooltip("自定义UI的脚本类")]
     public string customUIClass = "";
+
+    [Tooltip("UI层级排序，越小越靠前")]
+    public int priority = 0;
+
+    [Tooltip("父级优先级，相同优先级的UI会在同一个父物体下")]
+    public int parentPriority = 0;
 }

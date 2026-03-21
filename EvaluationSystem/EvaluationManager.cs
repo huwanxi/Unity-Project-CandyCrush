@@ -49,8 +49,25 @@ public class EvaluationManager
         }
         
         OnScoreUpdated?.Invoke(currentScore);
+        TriggerScoreUIEvent();
+
         if (evaluationData.gameMode == GameMode.TimeLimit) OnTimeUpdated?.Invoke(currentTimer);
         else OnMoveUpdated?.Invoke(currentMoveCount);
+    }
+
+    private void TriggerScoreUIEvent()
+    {
+        if (evaluationData != null && UIManager.Instance != null)
+        {
+            var scoreParam = new ScoreUpdateEventParam
+            {
+                currentScore = currentScore,
+                maxScore = evaluationData.threeStarScore,
+                starScores = new int[] { evaluationData.oneStarScore, evaluationData.twoStarScore, evaluationData.threeStarScore }
+            };
+            // UI 6 是评价系统 Game UI
+            UIManager.Instance.EventTrigger<ScoreUpdateEventParam>(6, scoreParam);
+        }
     }
 
     public void StartGame()
@@ -121,7 +138,7 @@ public class EvaluationManager
 
     private void HandleMatchesProcessed(int matchCount, int bonusScore)
     {
-        // 计算得分
+        // 按照消除方块的数量来计算得分，每个方块得分为 baseMatchScore，再加上额外加分
         int score = matchCount * evaluationData.baseMatchScore + bonusScore;
         AddScore(score);
     }
@@ -141,6 +158,9 @@ public class EvaluationManager
         currentScore += amount;
         OnScoreUpdated?.Invoke(currentScore);
         Debug.Log($"Score Added: {amount}, Total: {currentScore}");
+        
+        // 触发 UI 事件更新进度条和星级
+        TriggerScoreUIEvent();
     }
 
     public void CheckGameStatus()

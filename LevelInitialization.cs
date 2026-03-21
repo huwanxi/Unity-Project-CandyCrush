@@ -188,6 +188,17 @@ public class LevelInitialization
         }
     }
 
+    private int ExtractLevelId(string levelPath)
+    {
+        // 假设路径格式类似 "Json/LevelJson/Level_1"
+        string[] parts = levelPath.Split('_');
+        if (parts.Length > 1 && int.TryParse(parts[parts.Length - 1], out int id))
+        {
+            return id;
+        }
+        return 1; // 默认回退
+    }
+
     // 3. 开始游戏函数，包含方块下落和ui显性这些功能
     public async UniTask StartGame(string levelPath, string evaluationPath)
     {
@@ -198,6 +209,11 @@ public class LevelInitialization
         if (UIManager.Instance != null)
         {
             UIManager.Instance.OpenGameUI();
+            
+            // 提取关卡 ID 并触发棋盘更新事件给 UIGameObject_2
+            int levelId = ExtractLevelId(levelPath);
+            var boardParam = new BoardUpdateEventParam { levelId = levelId };
+            UIManager.Instance.EventTrigger<BoardUpdateEventParam>(2, boardParam);
         }
 
         // 播放游戏音乐
